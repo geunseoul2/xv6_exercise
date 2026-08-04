@@ -30,8 +30,8 @@ main(void)
       printf("init: fork failed\n");
       exit(1);
     }
-    if(pid == 0){
-      exec("sh", argv);
+    if(pid == 0){  //start of shell!
+      exec("sh", argv); 
       printf("init: exec sh failed\n");
       exit(1);
     }

@@ -159,7 +159,7 @@ main(void)
   // Read and run input commands.
   while(getcmd(buf, sizeof(buf)) >= 0){
     char *cmd = buf;
-    while (*cmd == ' ' || *cmd == '\t')
+    while (*cmd == ' ' || *cmd == '\t') //remove space?
       cmd++;
     if (*cmd == '\n') // is a blank command
       continue;
@@ -169,7 +169,7 @@ main(void)
       if(chdir(cmd+3) < 0)
         fprintf(2, "cannot cd %s\n", cmd+3);
     } else {
-      if(fork1() == 0)
+      if(fork1() == 0) //child process
         runcmd(parsecmd(cmd));
       wait(0);
     }
