@@ -49,24 +49,24 @@ ls(char *path)
     printf("%s %d %d %d\n", fmtname(path), st.type, st.ino, (int) st.size);
     break;
 
-  case T_DIR:
+  case T_DIR: //Directory를 만난 경우 ex) buf -> '.'
     if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
       printf("ls: path too long\n");
       break;
     }
     strcpy(buf, path);
     p = buf+strlen(buf);
-    *p++ = '/';
-    while(read(fd, &de, sizeof(de)) == sizeof(de)){
+    *p++ = '/'; //buf -> "./"
+    while(read(fd, &de, sizeof(de)) == sizeof(de)){ 
       if(de.inum == 0)
         continue;
-      memmove(p, de.name, DIRSIZ);
-      p[DIRSIZ] = 0;
+      memmove(p, de.name, DIRSIZ); //memmove(dest, src, n) -> p 포인터 부분으로 de.name 복사 -> buf -> "./temp.txt"
+      p[DIRSIZ] = 0; //null
       if(stat(buf, &st) < 0){
         printf("ls: cannot stat %s\n", buf);
         continue;
       }
-      printf("%s %d %d %d\n", fmtname(buf), st.type, st.ino, (int) st.size);
+      printf("%s %d %d %d\n", fmtname(buf), st.type, st.ino, (int) st.size); 
     }
     break;
   }

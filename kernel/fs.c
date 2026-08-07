@@ -40,11 +40,11 @@ readsb(int dev, struct superblock *sb)
 // Init fs
 void
 fsinit(int dev) {
-  readsb(dev, &sb);
+  readsb(dev, &sb); //superblock 읽기
   if(sb.magic != FSMAGIC)
     panic("invalid file system");
-  initlog(dev, &sb);
-  ireclaim(dev);
+  initlog(dev, &sb); //log 초기화
+  ireclaim(dev); //끊어진 inode 정리..?
 }
 
 // Zero a block.
