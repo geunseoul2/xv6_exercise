@@ -3,6 +3,7 @@
 #include "user/user.h"
 #include "kernel/fs.h"
 #include "kernel/fcntl.h"
+#include "kernel/param.h"
 
 char*
 fmtname(char *path)
@@ -27,11 +28,12 @@ fmtname(char *path)
 find all the files in a directory tree with a specific name
 Ideas from ls.c
 */
-void find(char* path, char* target) {
+void find(char* path, char* target, int is_exec, char** cmd, int exec_argc) {
     int fd;
     struct stat st;
     char buf[512], *p;
     struct dirent de;
+    int pid;
 
     if((fd = open(path, O_RDONLY)) < 0) {
         fprintf(2, "find: cannot open %s\n", path);
@@ -60,10 +62,32 @@ void find(char* path, char* target) {
                 continue;
             }
             
-            if(st.type == T_FILE && strcmp(fmtname(buf), target) == 0) printf("%s\n",buf);
+            if(st.type == T_FILE && strcmp(fmtname(buf), target) == 0) {
+                if(is_exec) {
+                    pid = fork();
+                    if(pid < 0) {
+                        printf("find: fork failed\n");
+                        exit(1);
+                    }
+                    if(pid == 0) { // child
+                        // execute cmd with the found file path as argument
+                        char* args[MAXARG];
+                        for(int i=0; i < exec_argc; i++) args[i] = cmd[i];
+                        args[exec_argc] = buf;
+                        args[exec_argc+1] = 0;
+                        exec(cmd[0], args);
+                        printf("find: exec failed\n");
+                        exit(1);
+                    } else { // parent
+                        wait(0);
+                    }
+                } else {
+                    printf("%s\n",buf);
+                }
+            }
             if(st.type == T_DIR ) {
                 if(strcmp(fmtname(buf),"..") == 0 || strcmp(fmtname(buf),".") == 0) continue;
-                find(buf,target);
+                find(buf,target,is_exec,cmd,exec_argc);
             }
 
         }
@@ -82,7 +106,8 @@ int main(int argc, char *argv[]) {
         fprintf(2, "find: wrong input format\n");
         exit(0);
     }
-
-    find(argv[1],argv[2]);
+    
+    if(argc == 3) find(argv[1],argv[2],0,0,0);
+    else if(strcmp(argv[3],"-exec") == 0) find(argv[1],argv[2],1,&argv[4],argc-4);
     exit(0);
 }
