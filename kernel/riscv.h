@@ -20,6 +20,7 @@ static inline uint64
 r_mstatus()
 {
   uint64 x;
+  // mstatus CSR(Control Status Register)에서 값을 읽어 x에 저장
   asm volatile("csrr %0, mstatus" : "=r" (x) );
   return x;
 }
@@ -325,6 +326,8 @@ r_tp()
 static inline void 
 w_tp(uint64 x)
 {
+  // "mv tp, %0" : %0 의 값을 tp 레지스터로 이동
+  // : : "r" (x) : C 언어 변수 x를 r 에 담아서 %0으로 전달해라.
   asm volatile("mv tp, %0" : : "r" (x));
 }
 

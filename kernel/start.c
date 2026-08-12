@@ -11,6 +11,8 @@ void timerinit();
 __attribute__ ((aligned (16))) char stack0[4096 * NCPU];
 
 // entry.S jumps here in machine mode on stack0.
+// C 언어에서 함수를 호출하면, 돌아올 주소를 스택에 넣어놓아야 하기 때문에 stack0 생성
+// start 함수는 CPU 코어 개별 초기화 진행
 void
 start()
 {

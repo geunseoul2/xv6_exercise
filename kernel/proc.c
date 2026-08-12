@@ -143,8 +143,8 @@ found:
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
-  p->context.ra = (uint64)forkret;
-  p->context.sp = p->kstack + PGSIZE;
+  p->context.ra = (uint64)forkret; //반환 주소에 forkret 함수의 주소 저장
+  p->context.sp = p->kstack + PGSIZE; //setting stack pointer
 
   return p;
 }
@@ -443,7 +443,8 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
-        swtch(&c->context, &p->context);
+        swtch(&c->context, &p->context); //swtch.S -> 레지스터 복원 proccess to CPU
+        //(처음 실행) swtch.S 의 ret에서 자동으로 forkret으로 jump
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
@@ -521,6 +522,7 @@ forkret(void)
 
     // We can invoke kexec() now that file system is initialized.
     // Put the return value (argc) of kexec into a0.
+    // user/init 프로세스 메모리 로드, 실행.
     p->trapframe->a0 = kexec("/init", (char *[]){ "/init", 0 });
     if (p->trapframe->a0 == -1) {
       panic("exec");
@@ -529,9 +531,9 @@ forkret(void)
 
   // return to user space, mimicing usertrap()'s return.
   prepare_return();
-  uint64 satp = MAKE_SATP(p->pagetable);
+  uint64 satp = MAKE_SATP(p->pagetable); //커널 PT -> 유저 PT
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
-  ((void (*)(uint64))trampoline_userret)(satp);
+  ((void (*)(uint64))trampoline_userret)(satp); //trampoline.S 에 있는 userret 로 Jump
 }
 
 // Sleep on channel chan, releasing condition lock lk.
