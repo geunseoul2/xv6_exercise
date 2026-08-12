@@ -8,6 +8,7 @@ volatile static int started = 0;
 
 // start() jumps here in supervisor mode on all CPUs.
 // CPU 하나(0번 CPU)가 시스템 전체 장치 초기화 / OS 필수 기반 세팅
+// 
 void
 main()
 {
@@ -45,7 +46,7 @@ main()
   scheduler();        
 }
 
-/*  
+/*  memory 상태
 [ 높은 주소 (High Address / RAM의 끝 : 128MB ) ]
   +-------------------------------------------------+
   |                                                 |
