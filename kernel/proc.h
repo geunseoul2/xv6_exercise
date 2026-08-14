@@ -46,16 +46,16 @@ struct trapframe {
   /*  16 */ uint64 kernel_trap;   // usertrap()
   /*  24 */ uint64 epc;           // saved user program counter
   /*  32 */ uint64 kernel_hartid; // saved kernel tp
-  /*  40 */ uint64 ra;
-  /*  48 */ uint64 sp;
-  /*  56 */ uint64 gp;
-  /*  64 */ uint64 tp;
-  /*  72 */ uint64 t0;
+  /*  40 */ uint64 ra; //return address
+  /*  48 */ uint64 sp; //stack pointer
+  /*  56 */ uint64 gp; //global pointer
+  /*  64 */ uint64 tp; //thread pointer
+  /*  72 */ uint64 t0; //t -> temporary register
   /*  80 */ uint64 t1;
   /*  88 */ uint64 t2;
-  /*  96 */ uint64 s0;
+  /*  96 */ uint64 s0; //s -> store register
   /* 104 */ uint64 s1;
-  /* 112 */ uint64 a0;
+  /* 112 */ uint64 a0; //argument register
   /* 120 */ uint64 a1;
   /* 128 */ uint64 a2;
   /* 136 */ uint64 a3;

@@ -1,0 +1,28 @@
+Looking at the backtrace output, which function called syscall?
+usertrap()
+
+What is the value of p->trapframe->a7 and what does that value represent? (Hint: look at user/init.c, the first user program xv6 starts, and its compiled assembly user/init.asm.)
+15 -> open system call index
+
+What was the previous mode that the CPU was in?
+User Mode
+0x200000022 -> 8th bit (Supervisor Previous Privilege) is 0
+
+Write down the assembly instruction the kernel is panicing at. Which register corresponds to the variable num?
+a3
+80001cda:	00002683          	lw	a3,0(zero) # 0 <_entry-0x80000000>
+## sepc -> supervisor exception program counter 
+        -> 트랩이 터진 바로 그 순간, CPU가 실행하고 있던 명령어의 메모리 주소(PC)
+
+Why does the kernel crash?
+Load Page Fault
+
+Is that confirmed by the value in scause above?
+The value of scause, which is 13(0xd), means Load Page Fault in RISCV manual
+
+
+What is the name of the process that was running when the kernel paniced? What is its process id (pid)?
+p p->name 의 결과가 init이므로 init 함수에서 panic이 발생하였다.
+pid는 1이다.
+
+존나어렵네;;
