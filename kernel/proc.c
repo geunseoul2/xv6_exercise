@@ -289,6 +289,8 @@ kfork(void)
 
   pid = np->pid;
 
+  np->interpose_mask = p->interpose_mask; //Interpose system call lab
+
   release(&np->lock);
 
   acquire(&wait_lock);
