@@ -140,7 +140,23 @@ syscall(void)
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
-    if((1 << num) == p->interpose_mask) {
+    if((1 << num) & p->interpose_mask) {
+      //Compare(==) 에서 Mask(&)로 변경,
+      //Compare은 하나의 값만을 염두해두고 한것이기 때문에 여러개의 syscall이 마스킹 되어있다면 반영이 안됨
+      if(num == SYS_open || num == SYS_exec) {
+        char path[MAXPATH];
+
+        if(argstr(0, path, MAXPATH) < 0) {
+          p->trapframe->a0 = -1;
+          return;
+        }
+
+        if(strncmp(path, p->interpose_pathnames, MAXPATH) == 0) {
+          p->trapframe->a0 = syscalls[num]();
+          return;
+        }
+      }
+      
       p->trapframe->a0 = -1;
       return;
     }

@@ -290,6 +290,7 @@ kfork(void)
   pid = np->pid;
 
   np->interpose_mask = p->interpose_mask; //Interpose system call lab
+  safestrcpy(np->interpose_pathnames, p->interpose_pathnames, MAXPATH);
 
   release(&np->lock);
 
