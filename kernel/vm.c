@@ -23,7 +23,7 @@ kvmmake(void)
 {
   pagetable_t kpgtbl;
 
-  kpgtbl = (pagetable_t) kalloc();
+  kpgtbl = (pagetable_t) kalloc(); //only make the root(level 2) page -> rest of the pt is in kvmap
   memset(kpgtbl, 0, PGSIZE);
 
   // uart registers
