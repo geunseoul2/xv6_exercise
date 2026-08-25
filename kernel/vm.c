@@ -141,12 +141,31 @@ walkaddr(pagetable_t pagetable, uint64 va)
 }
 
 
-#if defined(LAB_PGTBL) || defined(SOL_MMAP) || defined(SOL_COW)
+//#if defined(LAB_PGTBL) || defined(SOL_MMAP) || defined(SOL_COW)
+void
+vmprint_level(pagetable_t pagetable, int level,uint64 base_va) {
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    uint64 child = PTE2PA(pte);
+    if(pte & PTE_V){
+      // this PTE points to a lower-level page table.
+      uint64 va = base_va | ((uint64)i << (12 + (2 - level) * 9));
+      for(int j=0; j<=level; j++) {
+        if(j == 0) printf("..");
+        else printf(" ..");
+      }
+      printf("%p: pte %p pa %p\n", (void*)va, (void*)pte, (void*)PTE2PA(pte));
+      if((pte & (PTE_R|PTE_W|PTE_X)) == 0) vmprint_level((pagetable_t)child,level+1,va); //if the PTE is not a leaf
+    }
+  }
+}
 void
 vmprint(pagetable_t pagetable) {
-  // your code here
+  // got hints from freewalk
+  printf(" page table  %p\n", (void*)pagetable);
+  vmprint_level(pagetable,0,0);
 }
-#endif
+//#endif
 
 
 
