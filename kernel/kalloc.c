@@ -51,7 +51,7 @@ freerange(void *pa_start, void *pa_end)
   p = (char*)PGROUNDUP((uint64)pa_start);
 
   while ((uint64)p + PGSIZE <= (uint64)pa_end) {
-    if (n < 8 && ((uint64)p % SUPERPGSIZE) == 0) {
+    if (n < 32 && ((uint64)p % SUPERPGSIZE) == 0) {
       superfree(p);
       p += SUPERPGSIZE;
       n++;

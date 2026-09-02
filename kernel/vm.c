@@ -202,15 +202,50 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   a = va;
   last = va + size - PGSIZE;
   for(;;){
-    if((pte = walk(pagetable, a, 1)) == 0)
-      return -1;
-    if(*pte & PTE_V)
-      panic("mappages: remap");
-    *pte = PA2PTE(pa) | perm | PTE_V;
-    if(a == last)
+    uint left = last - a + PGSIZE;
+
+    if((perm & PTE_U) && (a % SUPERPGSIZE) == 0 && (pa % SUPERPGSIZE) == 0 && left >= SUPERPGSIZE) {
+      //2MB L1 PTE mapping
+      pagetable_t l1_pt;
+      pte_t *l2_pte = &pagetable[PX(2, a)];
+
+      if(*l2_pte & PTE_V) {
+        if((*l2_pte & (PTE_R | PTE_W | PTE_X)) != 0)
+          panic("mappages: L2 leaf");
+
+        l1_pt = (pagetable_t)PTE2PA(*l2_pte);
+      } else { //if not made yet
+        l1_pt = (pagetable_t)kalloc();
+        if(l1_pt == 0)
+          return -1;
+
+        memset(l1_pt, 0, PGSIZE);
+        *l2_pte = PA2PTE(l1_pt) | PTE_V;
+      }
+
+      pte = &l1_pt[PX(1, a)];
+
+      if(*pte & PTE_V)
+        panic("mappages: remap superpage");
+
+      *pte = PA2PTE(pa) | perm | PTE_V;
+
+      a += SUPERPGSIZE;
+      pa += SUPERPGSIZE;
+    } else { //original 4KB mapping
+      if((pte = walk(pagetable, a, 1)) == 0)
+        return -1;
+      if(*pte & PTE_V)
+        panic("mappages: remap");
+      *pte = PA2PTE(pa) | perm | PTE_V;
+      if(a == last)
+        break;
+      a += PGSIZE;
+      pa += PGSIZE;
+    }
+
+    if(a > last)
       break;
-    a += PGSIZE;
-    pa += PGSIZE;
   }
   return 0;
 }
@@ -226,6 +261,40 @@ uvmcreate()
     return 0;
   memset(pagetable, 0, PGSIZE);
   return pagetable;
+}
+
+int
+demote_superpage(pagetable_t pagetable, uint64 va)
+{
+  pde_t *pde2 = &pagetable[PX(2, va)];
+  if((*pde2 & PTE_V) == 0)
+    return -1;
+
+  pagetable_t l1_pt = (pagetable_t)PTE2PA(*pde2);
+  pte_t *l1_pte = &l1_pt[PX(1, va)];
+
+  // L1 PTE is a Leaf
+  if((*l1_pte & PTE_V) == 0 || ((*l1_pte & (PTE_R | PTE_W | PTE_X)) == 0))
+    return -1;
+
+  uint64 super_pa = PTE2PA(*l1_pte);
+  uint64 super_flags = PTE_FLAGS(*l1_pte);
+
+  pagetable_t l0_pt = (pagetable_t)kalloc();
+  if(l0_pt == 0)
+    return -1;
+
+  memset(l0_pt, 0, PGSIZE);
+
+  //Make 512 L0 Leaf
+  for(int i = 0; i < 512; i++) {
+    uint64 pa = super_pa + (i * PGSIZE);
+    l0_pt[i] = PA2PTE(pa) | super_flags | PTE_V;
+  }
+
+  *l1_pte = PA2PTE(l0_pt) | PTE_V; //check only valid in L0 leaf
+
+  return 0;
 }
 
 // Remove npages of mappings starting from va. va must be
@@ -258,7 +327,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     pagetable_t l2_pt = pagetable;
     pagetable_t l1_pt = (pagetable_t)PTE2PA(l2_pt[PX(2, a)]);
     if((uint64)pte >= (uint64)l1_pt && (uint64)pte < (uint64)l1_pt + PGSIZE && (*pte & (PTE_R | PTE_W | PTE_X))) {
-      if(a + SUPERPGSIZE <= va + npages * PGSIZE) {
+      if(a % SUPERPGSIZE == 0 && a + SUPERPGSIZE <= va + npages * PGSIZE){
         if(do_free){
           uint64 pa = PTE2PA(*pte);
           superfree((void*)pa);
@@ -267,6 +336,9 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
         a += SUPERPGSIZE;
         continue;
       }
+
+      if(demote_superpage(pagetable,a) < 0) panic("uvmunmap : demotion failed");
+      continue;
     }
 
     //original 4KB page free
@@ -404,8 +476,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     pagetable_t l2_pt = old;
     pagetable_t l1_pt = (pagetable_t)PTE2PA(l2_pt[PX(2, i)]);
     if((uint64)pte >= (uint64)l1_pt && (uint64)pte < (uint64)l1_pt + PGSIZE && (*pte & (PTE_R | PTE_W | PTE_X))){
-      //To check if the PTE is L1 PTE -> Superpage PTE
-      printf("TEST\n");
+      //if the PTE is L1 PTE -> Superpage PTE
       if((mem = superalloc()) == 0) 
         goto err;
       memmove(mem,(char*)pa, SUPERPGSIZE);
