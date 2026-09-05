@@ -1,0 +1,42 @@
+Which registers contain arguments to functions? For example, which register holds 13 in main's call to printf?
+
+In the standard RISC-V calling convention, funtion arguments are passed in the argument registers a0 ~ a7
+printf passes 3 arguments  a0,a1,a2
+a0 -> format string ("%d %d\n")
+a1 -> result of f(8)+1 : already calculated(Constant Folding)
+a3 -> 13
+
+
+Where is the call to function f in the assembly code for main? Where is the call to g? (Hint: the compiler may inline functions.)
+
+there is no jal instruction for f and g in the compiled code,
+since the compiler evaluated f(8) and g(8) at compile time and performed Inlining.
+
+
+At what address is the function printf located?
+
+printf is located at addresss 0x724
+
+
+What value is in the register ra just after the jalr to printf in main?
+
+jal and jalr instructions automatically set the return address(ra) to the following instruction(PC + 4)
+
+
+Run the following code.
+
+unsigned int i = 0x00646c72;
+printf("H%x Wo%s", 57616, (char *) &i);
+
+What is the output? -> He110 World
+
+The output depends on that fact that the RISC-V is little-endian. If the RISC-V were instead big-endian what would you set i to in order to yield the same output? Would you need to change 57616 to a different value?
+Little Endian : 0x72/r 0x6c/l 0x64/d 0x00/\0
+Big Endian stores the MSB in the lowest address, so it has to be 0x726c6400
+We don't need to change 57616 since it is a integer value
+
+
+In the following code, what is going to be printed after 'y='? printf("x=%d y=%d", 3);
+
+It is a grabage value, which is unknown and creates an error
+there is no value in a2 for the printf can interpret.
