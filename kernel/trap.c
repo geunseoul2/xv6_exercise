@@ -87,10 +87,12 @@ usertrap(void)
 
       if(p->alarm_ticks >= p->alarm_interval) {
         p->alarm_ticks = 0;
+        p->alarm_trapframe = *(p->trapframe); //save the trapframe of this place to restore
         p->trapframe->epc = p->handler; //If ticks hit the interval, go to the handler function
+        p->handler_active = 1;
       }
     }
-    yield();
+    yield(); //yield CPU to other process
   }
 
   prepare_return();

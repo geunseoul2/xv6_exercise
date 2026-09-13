@@ -100,6 +100,8 @@ struct proc {
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table
   struct trapframe *trapframe; // data page for trampoline.S
+  struct trapframe alarm_trapframe; //store the trapframe before going to handler function to restore it later(sigreturn)
+                                   //since the alarm_trapframe is only accessed in kernel, it doesn't need to be a pointer
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
@@ -107,4 +109,5 @@ struct proc {
   int alarm_interval;          // Interval passed by sigalarm()
   uint64 handler;              // Handler function address
   int alarm_ticks;             // tocks passed since last call
+  int handler_active;          // to prevent re-entrant calls to handler
 };  

@@ -110,7 +110,10 @@ sys_uptime(void)
 uint64
 sys_sigreturn(void)
 {
-  return 0;
+  uint64 a0 = myproc()->alarm_trapframe.a0;
+  *(myproc()->trapframe) = myproc()->alarm_trapframe;
+  myproc()->handler_active = 0;
+  return a0; //to keep the trapframe a0 value, not the syscall return value
 }
 
 uint64
