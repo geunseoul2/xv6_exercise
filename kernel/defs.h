@@ -59,6 +59,9 @@ void            ireclaim(int);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+int             page_reference_count(uint64);
+void            page_refcount_add(uint64);
+void            page_refcount_sub(uint64);
 
 // log.c
 void            initlog(int, struct superblock*);

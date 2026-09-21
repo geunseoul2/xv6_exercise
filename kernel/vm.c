@@ -290,7 +290,7 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 // Given a parent process's page table, copy
 // its memory into a child's page table.
 // Copies both the page table and the
-// physical memory.
+// physical memory. -> COW copy only the page table and link the pt to the parents physical memory
 // returns 0 on success, -1 on failure.
 // frees any allocated pages on failure.
 int
@@ -299,7 +299,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
+  //char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
@@ -308,13 +308,20 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       continue;   // physical page hasn't been allocated
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+    //if write accessible, change it to COW flag
+    if(flags & PTE_W) {
+      flags = (flags & ~PTE_W) | PTE_COW;
+      *pte = PA2PTE(pa) | flags; 
+    }
+    // if((mem = kalloc()) == 0)
+    //   goto err;
+    //memmove(mem, (char*)pa, PGSIZE);
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){
+      //kfree(mem);
       goto err;
     }
+
+    page_refcount_add(pa);
   }
   return 0;
 
@@ -351,12 +358,14 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
       return -1;
   
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0) {
+    pte = walk(pagetable,va0,0);
+    if(pa0 == 0 || (pte && (*pte & PTE_COW))) {
       if((pa0 = vmfault(pagetable, va0, 0)) == 0) {
         return -1;
       }
     }
-
+    
+    pa0 = walkaddr(pagetable, va0);
     pte = walk(pagetable, va0, 0);
     // forbid copyout over read-only user text pages.
     if((*pte & PTE_W) == 0)
@@ -453,14 +462,43 @@ uint64
 vmfault(pagetable_t pagetable, uint64 va, int read)
 {
   uint64 mem;
+  uint64 pa = 0;
   struct proc *p = myproc();
+  pte_t *pte;
+  uint flags;
 
   if (va >= p->sz) // checks the faulting address is within the region previously granted by sbrk(sz)
     return 0;
   va = PGROUNDDOWN(va);
-  if(ismapped(pagetable, va)) {
-    return 0;
+  pte = walk(pagetable, va, 0);
+  if(pte && (*pte & PTE_V)) { //if pte is mapped (COW or read-only page)
+    pa = PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte);
+    
+    //if it is originally read-only page
+    if((flags & PTE_COW) == 0) return 0;
+    if(read) return pa; //if read operation, no more to do
+
+    if(page_reference_count(pa) == 1) { //only one reference
+      flags = (flags | PTE_W) & ~PTE_COW;
+      *pte = PA2PTE(pa) | flags;
+      sfence_vma(); //Add TLB flush since pte has changed
+      return pa;
+    }
+
+    mem = (uint64) kalloc();
+    if(mem == 0)
+      return 0;
+    
+    memmove((void*)mem,(void*)pa,PGSIZE);
+    flags = (flags | PTE_W) & ~PTE_COW;
+    *pte = PA2PTE(mem) | flags;
+    sfence_vma(); //Add TLB flush since pte has changed
+
+    page_refcount_sub(pa);//decrease the reference count for the original page
+    return mem;
   }
+
   mem = (uint64) kalloc();
   if(mem == 0)
     return 0;

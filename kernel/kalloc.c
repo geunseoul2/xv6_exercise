@@ -21,12 +21,14 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
+  int reference_count[NPAGES]; //reference count of each physcial page
 } kmem;
 
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  for(int i=0; i< NPAGES; i++) kmem.reference_count[i] = 1;
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -47,16 +49,26 @@ void
 kfree(void *pa)
 {
   struct run *r;
-
+  uint64 idx;
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
+  idx = PA_IDX(pa);
+
+  acquire(&kmem.lock);
+  if(kmem.reference_count[idx] > 1) { //other reference still exist
+    kmem.reference_count[idx]--;
+    release(&kmem.lock);
+    return;
+  }
+
+  kmem.reference_count[idx]--;
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
 
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
+  
   r->next = kmem.freelist;
   kmem.freelist = r;
   release(&kmem.lock);
@@ -72,11 +84,40 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r) {
     kmem.freelist = r->next;
+    kmem.reference_count[PA_IDX(r)] = 1;
+  }
   release(&kmem.lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
+}
+
+int
+page_reference_count(uint64 pa) {
+  int count;
+
+  acquire(&kmem.lock);
+  count = kmem.reference_count[PA_IDX(pa)];
+  release(&kmem.lock);
+
+  return count;
+}
+
+void
+page_refcount_add(uint64 pa)
+{
+  acquire(&kmem.lock);
+  kmem.reference_count[PA_IDX(pa)]++;
+  release(&kmem.lock);
+}
+
+void
+page_refcount_sub(uint64 pa)
+{
+  acquire(&kmem.lock);
+  kmem.reference_count[PA_IDX(pa)]--;
+  release(&kmem.lock);
 }

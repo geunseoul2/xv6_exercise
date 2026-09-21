@@ -57,3 +57,7 @@
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
+
+//For COW lab
+#define NPAGES ((PHYSTOP - KERNBASE) / PGSIZE) //Number of total pages in physical mem
+#define PA_IDX(pa) (((uint64)(pa) - KERNBASE) / PGSIZE)
